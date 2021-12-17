@@ -21,6 +21,7 @@
 #include <functional>
 
 #include "ArduinoO1Heap.hpp"
+#include "ArduinoTLSFHeap.hpp"
 #include "ArduinoUAVCANTypes.h"
 
 #include "libcanard/canard.h"
@@ -43,37 +44,35 @@ typedef std::function<bool(CanardFrame const &)> CanFrameTransmitFunc;
 class ArduinoUAVCAN
 {
 public:
-
   ArduinoUAVCAN(uint8_t const node_id,
                 CanFrameTransmitFunc transmit_func);
-
 
   /* Must be called from the application upon the
    * reception of a can frame.
    */
-  void onCanFrameReceived(CanardFrame const & frame);
+  void onCanFrameReceived(CanardFrame const &frame);
   /* Must be called regularly from within the application
    * in order to transmit all CAN pushed on the internal
    * stack via publish/request.
    */
   bool transmitCanFrame();
 
-
-  template <typename T>                     bool subscribe       (OnTransferReceivedFunc func);
-  template <typename T>                     bool unsubscribe     ();
+  template <typename T>
+  bool subscribe(OnTransferReceivedFunc func);
 
   /* publish/subscribe API for "message" data exchange paradigm */
-  template <typename T_MSG>                 bool publish         (T_MSG const & msg);
+  template <typename T_MSG>
+  bool publish(T_MSG const &msg);
 
   /* request/response API for "service" data exchange paradigm */
-  template <typename T_RSP>                 bool respond         (T_RSP const & rsp, CanardNodeID const remote_node_id, CanardTransferID const transfer_id);
-  template <typename T_REQ, typename T_RSP> bool request         (T_REQ const & req, CanardNodeID const remote_node_id, OnTransferReceivedFunc func);
-
+  template <typename T_RSP>
+  bool respond(T_RSP const &rsp, CanardNodeID const remote_node_id, CanardTransferID const transfer_id);
+  template <typename T_REQ, typename T_RSP>
+  bool request(T_REQ const &req, CanardNodeID const remote_node_id, OnTransferReceivedFunc func);
 
 private:
-
   static size_t constexpr LIBCANARD_O1HEAP_SIZE = 4096;
-  typedef ArduinoO1Heap<LIBCANARD_O1HEAP_SIZE> O1HeapLibcanard;
+  // typedef ArduinoO1Heap<LIBCANARD_O1HEAP_SIZE> O1HeapLibcanard;
 
   typedef struct
   {
@@ -81,20 +80,21 @@ private:
     OnTransferReceivedFunc transfer_complete_callback;
   } RxTransferData;
 
-  O1HeapLibcanard _o1heap;
+  ArduinoTLSFHeap _o1heap;
   CanardInstance _canard_ins;
   CanFrameTransmitFunc _transmit_func;
-  std::map<CanardPortID, RxTransferData> _rx_transfer_map;
-  std::map<CanardPortID, CanardTransferID> _tx_transfer_map;
+  std::map<CanardPortID, RxTransferData, std::less<CanardPortID>, StdLikeAllocator<std::pair<const CanardPortID, RxTransferData>>> _rx_transfer_map;
+  std::map<CanardPortID, CanardTransferID, std::less<CanardPortID>, StdLikeAllocator<std::pair<const CanardPortID, CanardTransferID>>> _tx_transfer_map;
 
-  static void * o1heap_allocate(CanardInstance * const ins, size_t const amount);
-  static void   o1heap_free    (CanardInstance * const ins, void * const pointer);
+  static void *o1heap_allocate(CanardInstance *const ins, size_t const amount);
+  static void o1heap_free(CanardInstance *const ins, void *const pointer);
 
   CanardTransferID getNextTransferId(CanardPortID const port_id);
-  bool             subscribe        (CanardTransferKind const transfer_kind, CanardPortID const port_id, size_t const payload_size_max, OnTransferReceivedFunc func);
-  bool             unsubscribe      (CanardTransferKind const transfer_kind, CanardPortID const port_id);
-  bool             enqeueTransfer   (CanardNodeID const remote_node_id, CanardTransferKind const transfer_kind, CanardPortID const port_id, size_t const payload_size, void * payload, CanardTransferID const transfer_id);
+  bool unsubscribe(CanardTransferKind const transfer_kind, CanardPortID const port_id);
 
+public:
+  bool subscribe(CanardTransferKind const transfer_kind, CanardPortID const port_id, size_t const payload_size_max, OnTransferReceivedFunc func);
+  bool enqeueTransfer(CanardNodeID const remote_node_id, CanardTransferKind const transfer_kind, CanardPortID const port_id, size_t const payload_size, void *payload, CanardTransferID const transfer_id);
 };
 
 /**************************************************************************************

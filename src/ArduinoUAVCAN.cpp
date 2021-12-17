@@ -17,8 +17,7 @@
 
 ArduinoUAVCAN::ArduinoUAVCAN(uint8_t const node_id,
                              CanFrameTransmitFunc transmit_func)
-: _canard_ins{canardInit(ArduinoUAVCAN::o1heap_allocate, ArduinoUAVCAN::o1heap_free)}
-, _transmit_func{transmit_func}
+    : _canard_ins{canardInit(ArduinoUAVCAN::o1heap_allocate, ArduinoUAVCAN::o1heap_free)}, _transmit_func{transmit_func}
 {
   _canard_ins.node_id = node_id;
   _canard_ins.mtu_bytes = CANARD_MTU_CAN_CLASSIC;
@@ -29,7 +28,7 @@ ArduinoUAVCAN::ArduinoUAVCAN(uint8_t const node_id,
  * PUBLIC MEMBER FUNCTIONS
  **************************************************************************************/
 
-void ArduinoUAVCAN::onCanFrameReceived(CanardFrame const & frame)
+void ArduinoUAVCAN::onCanFrameReceived(CanardFrame const &frame)
 {
   LockGuard lock;
 
@@ -39,13 +38,14 @@ void ArduinoUAVCAN::onCanFrameReceived(CanardFrame const & frame)
                                        0,
                                        &transfer);
 
-  if(result == 1)
+  if (result == 1)
   {
     if (_rx_transfer_map.count(transfer.port_id) > 0)
     {
       OnTransferReceivedFunc transfer_received_func = _rx_transfer_map[transfer.port_id].transfer_complete_callback;
 
-      if (transfer.transfer_kind == CanardTransferKindResponse) {
+      if (transfer.transfer_kind == CanardTransferKindResponse)
+      {
         if ((_tx_transfer_map.count(transfer.port_id) > 0) && (_tx_transfer_map[transfer.port_id] == transfer.transfer_id))
         {
           transfer_received_func(transfer, *this);
@@ -66,7 +66,7 @@ bool ArduinoUAVCAN::transmitCanFrame()
   if (!_transmit_func)
     return false;
 
-  CanardFrame const * txf = canardTxPeek(&_canard_ins);
+  CanardFrame const *txf = canardTxPeek(&_canard_ins);
 
   if (txf == nullptr)
     return false;
@@ -83,15 +83,15 @@ bool ArduinoUAVCAN::transmitCanFrame()
  * PRIVATE MEMBER FUNCTIONS
  **************************************************************************************/
 
-void * ArduinoUAVCAN::o1heap_allocate(CanardInstance * const ins, size_t const amount)
+void *ArduinoUAVCAN::o1heap_allocate(CanardInstance *const ins, size_t const amount)
 {
-  O1HeapLibcanard * o1heap = reinterpret_cast<O1HeapLibcanard*>(ins->user_reference);
+  ArduinoTLSFHeap *o1heap = reinterpret_cast<ArduinoTLSFHeap *>(ins->user_reference);
   return o1heap->allocate(amount);
 }
 
-void ArduinoUAVCAN::o1heap_free(CanardInstance * const ins, void * const pointer)
+void ArduinoUAVCAN::o1heap_free(CanardInstance *const ins, void *const pointer)
 {
-  O1HeapLibcanard * o1heap = reinterpret_cast<O1HeapLibcanard*>(ins->user_reference);
+  ArduinoTLSFHeap *o1heap = reinterpret_cast<ArduinoTLSFHeap *>(ins->user_reference);
   o1heap->free(pointer);
 }
 
@@ -130,19 +130,19 @@ bool ArduinoUAVCAN::unsubscribe(CanardTransferKind const transfer_kind, CanardPo
   return success;
 }
 
-bool ArduinoUAVCAN::enqeueTransfer(CanardNodeID const remote_node_id, CanardTransferKind const transfer_kind, CanardPortID const port_id, size_t const payload_size, void * payload, CanardTransferID const transfer_id)
+bool ArduinoUAVCAN::enqeueTransfer(CanardNodeID const remote_node_id, CanardTransferKind const transfer_kind, CanardPortID const port_id, size_t const payload_size, void *payload, CanardTransferID const transfer_id)
 {
   CanardTransfer const transfer =
-  {
-    /* .timestamp_usec = */ 0, /* No deadline on transmission */
-    /* .priority       = */ CanardPriorityNominal,
-    /* .transfer_kind  = */ transfer_kind,
-    /* .port_id        = */ port_id,
-    /* .remote_node_id = */ remote_node_id,
-    /* .transfer_id    = */ transfer_id,
-    /* .payload_size   = */ payload_size,
-    /* .payload        = */ payload,
-  };
+      {
+          /* .timestamp_usec = */ 0, /* No deadline on transmission */
+          /* .priority       = */ CanardPriorityNominal,
+          /* .transfer_kind  = */ transfer_kind,
+          /* .port_id        = */ port_id,
+          /* .remote_node_id = */ remote_node_id,
+          /* .transfer_id    = */ transfer_id,
+          /* .payload_size   = */ payload_size,
+          /* .payload        = */ payload,
+      };
 
   /* Serialize transfer into a series of CAN frames */
   int32_t result = canardTxPush(&_canard_ins, &transfer);
